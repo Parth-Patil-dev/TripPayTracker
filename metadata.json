@@ -1,0 +1,6 @@
+{
+  "name": "TripSplit - Family Trip Expense Tracker",
+  "description": "Mobile-first PWA trip expense tracker for families with real-time sync, automated debt calculation, and modern fintech design.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidJoinCode(code) {
+      return code is string && code.size() == 6 && code.matches('^[A-Z0-9]{6}$');
+    }
+
+    function isValidTrip(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.baseCurrency is string && data.baseCurrency.size() > 0 && data.baseCurrency.size() <= 10
+        && isValidJoinCode(data.joinCode);
+    }
+
+    function isValidMember(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 60
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128
+        && data.uid == request.auth.uid;
+    }
+
+    function isValidExpense(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 120
+        && (data.amount is int || data.amount is number) && data.amount > 0
+        && data.category is string && data.category.size() > 0 && data.category.size() <= 30
+        && data.date is string && data.date.size() > 0 && data.date.size() <= 30
+        && data.paidBy is string && data.paidBy.size() > 0 && data.paidBy.size() <= 128
+        && data.createdBy is string && data.createdBy == request.auth.uid
+        && (!('currency' in data) || (data.currency is string && data.currency.size() <= 10))
+        && (!('originalAmount' in data) || ((data.originalAmount is int || data.originalAmount is number) && data.originalAmount > 0))
+        && (!('exchangeRate' in data) || ((data.exchangeRate is int || data.exchangeRate is number) && data.exchangeRate > 0))
+        && (!('receiptImage' in data) || (data.receiptImage is string && data.receiptImage.size() <= 900000));
+    }
+
+    match /trips/{tripId} {
+      // Anyone signed in (including anonymous users) can lookup trips by joinCode or ID
+      allow get: if isSignedIn() && isValidId(tripId);
+      allow list: if isSignedIn();
+
+      // Create a trip
+      allow create: if isSignedIn()
+        && isValidId(tripId)
+        && isValidTrip(request.resource.data);
+
+      // Update trip
+      allow update: if isSignedIn()
+        && isValidId(tripId)
+        && isValidTrip(request.resource.data)
+        && request.resource.data.joinCode == resource.data.joinCode;
+
+      // Members subcollection
+      match /members/{memberId} {
+        allow read: if isSignedIn() && isValidId(tripId);
+        
+        // A user can join as a member with their auth uid
+        allow create: if isSignedIn()
+          && isValidId(tripId)
+          && isValidId(memberId)
+          && isValidMember(request.resource.data);
+
+        allow update: if isSignedIn()
+          && isValidId(tripId)
+          && isValidId(memberId)
+          && request.auth.uid == resource.data.uid
+          && isValidMember(request.resource.data);
+
+        allow delete: if isSignedIn()
+          && isValidId(tripId)
+          && isValidId(memberId)
+          && request.auth.uid == resource.data.uid;
+      }
+
+      // Expenses subcollection
+      match /expenses/{expenseId} {
+        allow read: if isSignedIn() && isValidId(tripId);
+
+        allow create: if isSignedIn()
+          && isValidId(tripId)
+          && isValidId(expenseId)
+          && isValidExpense(request.resource.data);
+
+        // Members can edit or delete any expense they created
+        allow update: if isSignedIn()
+          && isValidId(tripId)
+          && isValidId(expenseId)
+          && resource.data.createdBy == request.auth.uid
+          && isValidExpense(request.resource.data);
+
+        allow delete: if isSignedIn()
+          && isValidId(tripId)
+          && isValidId(expenseId)
+          && resource.data.createdBy == request.auth.uid;
+      }
+
+      // Settlements subcollection (synced live toggle states)
+      match /settlements/{settlementId} {
+        allow read: if isSignedIn() && isValidId(tripId);
+        allow create, update: if isSignedIn()
+          && isValidId(tripId)
+          && isValidId(settlementId)
+          && request.resource.data.isSettled is bool;
+        allow delete: if isSignedIn()
+          && isValidId(tripId)
+          && isValidId(settlementId);
+      }
+    }
+  }
+}

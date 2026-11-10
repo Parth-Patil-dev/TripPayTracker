@@ -1,0 +1,181 @@
+{
+  "entities": {
+    "Trip": {
+      "title": "Trip",
+      "description": "A family or group trip containing members and expenses.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Display name of the trip",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "baseCurrency": {
+          "type": "string",
+          "description": "Base currency code (e.g., INR, USD, EUR)",
+          "minLength": 1,
+          "maxLength": 10
+        },
+        "joinCode": {
+          "type": "string",
+          "description": "6-character uppercase alphanumeric code to join the trip",
+          "minLength": 6,
+          "maxLength": 6,
+          "pattern": "^[A-Z0-9]{6}$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the trip was created"
+        },
+        "createdByUid": {
+          "type": "string",
+          "description": "User ID of the creator",
+          "maxLength": 128
+        }
+      },
+      "required": ["name", "baseCurrency", "joinCode"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "A traveler/participant in a trip.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Display name of the member",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID (anonymous or authenticated)",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the member joined the trip"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role in the group (e.g. Organizer, Member)",
+          "maxLength": 30
+        }
+      },
+      "required": ["name", "uid"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "An expense item recorded in a trip stored in integer minor units.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Title or description of the expense",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "amount": {
+          "type": "integer",
+          "description": "Amount spent in integer minor units (e.g. cents/paise)"
+        },
+        "category": {
+          "type": "string",
+          "description": "Expense category (Food, Stay, Travel, Fuel, Shopping, Tickets, Other)",
+          "enum": ["Food", "Stay", "Travel", "Fuel", "Shopping", "Tickets", "Other"]
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of expense formatted as YYYY-MM-DD",
+          "maxLength": 30
+        },
+        "paidBy": {
+          "type": "string",
+          "description": "Member ID of the member who paid",
+          "maxLength": 128
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "UID of the user who recorded the expense",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency code of the original payment (e.g. USD, EUR, INR)",
+          "maxLength": 10
+        },
+        "originalAmount": {
+          "type": "integer",
+          "description": "Original amount in minor units of the foreign currency"
+        },
+        "exchangeRate": {
+          "type": "number",
+          "description": "Exchange rate from foreign currency to trip base currency"
+        },
+        "receiptImage": {
+          "type": "string",
+          "description": "Base64 data URL string of compressed receipt photo (<= 800px max dim, 0.6 quality)",
+          "maxLength": 900000
+        }
+      },
+      "required": ["title", "amount", "category", "date", "paidBy", "createdBy"]
+    },
+    "Settlement": {
+      "title": "Settlement",
+      "description": "Settled status for a simplified debt payment between two members.",
+      "type": "object",
+      "properties": {
+        "fromId": {
+          "type": "string",
+          "description": "Debtor member ID",
+          "maxLength": 128
+        },
+        "toId": {
+          "type": "string",
+          "description": "Creditor member ID",
+          "maxLength": 128
+        },
+        "amount": {
+          "type": "integer",
+          "description": "Amount in minor units"
+        },
+        "isSettled": {
+          "type": "boolean",
+          "description": "Whether the debt payment is marked as settled"
+        },
+        "settledAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when toggled"
+        }
+      },
+      "required": ["fromId", "toId", "amount", "isSettled"]
+    }
+  },
+  "firestore": {
+    "/trips/{tripId}": {
+      "schema": "Trip",
+      "description": "Root document for a trip."
+    },
+    "/trips/{tripId}/members/{memberId}": {
+      "schema": "Member",
+      "description": "Subcollection storing members of the trip."
+    },
+    "/trips/{tripId}/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Subcollection storing expenses belonging to the trip."
+    },
+    "/trips/{tripId}/settlements/{settlementId}": {
+      "schema": "Settlement",
+      "description": "Subcollection storing settled toggle states for debt payments."
+    }
+  }
+}
